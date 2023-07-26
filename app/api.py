@@ -1,9 +1,10 @@
-from fastapi import FastAPI, status, HTTPException, Header
-from pydantic import BaseModel,Field
+from fastapi import FastAPI, status, HTTPException, Depends
+from pydantic import BaseModel
 from app.database import session
 import app.model  as model
-from app.utils import get_hashed_password,verify_password,create_access_token, decode_access_token
+from app.utils import get_hashed_password,verify_password,create_access_token
 from typing import List 
+from app.auth import authenticate
 
 app = FastAPI()
 db = session()
@@ -91,33 +92,10 @@ def login(user:User_Info):
 
 # CRUD operation with jwt token
 
-#helper function to authnticate the user and jwt token
-def authenticate(jwt_token,user_email):
-    
-    #checking if the user that user exits or not
-    is_user_exists = db.query(model.User_Info).filter(model.User_Info.email == user_email).first()
-    if is_user_exists is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='User Does not Exits, Signup First')
-    
-    #checking it the token given is correct according to the user or not 
-    is_user , is_exp = decode_access_token(jwt_token,user_email)
-    
-    if is_user == False and is_exp == False:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Invalid Token')
-    
-    #checking if the token has expired or not 
-    if is_exp:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail='Token has Expire, Re Login')
-    
-
-
 # geeting all the items from the database 
 @app.get("/items", response_model=List[Item],status_code= status.HTTP_200_OK,tags = ['CRUD Operations'])
-def get_all_items(jwt_token:str = Header(...),user_email:str= Header(...)):
-    
-    #authenticating the user
-    authenticate(jwt_token,user_email)
-    
+def get_all_items(dependencies = Depends(authenticate)):
+        
     items = db.query(model.Items).all()
     return items
 
@@ -125,12 +103,7 @@ def get_all_items(jwt_token:str = Header(...),user_email:str= Header(...)):
 
 
 @app.get('/items/{item_name}', response_model=Item, status_code=status.HTTP_200_OK,tags = ['CRUD Operations'])
-def get_an_item(item_name: int,jwt_token:str = Header(...),user_email:str= Header(...)):
-    
-    
-    #authenticating the user
-    authenticate(jwt_token,user_email)
-    
+def get_an_item(item_name: int,dependencies = Depends(authenticate)):
     
     an_item = db.query(model.Items).filter(model.Items.name == item_name).first()
     
@@ -141,10 +114,7 @@ def get_an_item(item_name: int,jwt_token:str = Header(...),user_email:str= Heade
 
 
 @app.post('/items', response_model=Item, status_code=status.HTTP_201_CREATED,tags = ['CRUD Operations'])
-def create_item(item: Item,jwt_token:str = Header(...),user_email:str= Header(...)):
-
-    #authenticating the user
-    authenticate(jwt_token,user_email)
+def create_item(item: Item,dependencies = Depends(authenticate)):
     
     db_item = db.query(model.Items).filter(model.Items.name == item.name).first()
     if db_item is not None:
@@ -165,10 +135,7 @@ def create_item(item: Item,jwt_token:str = Header(...),user_email:str= Header(..
     return new_item
 
 @app.put('/item/{item_name}', response_model=Item, status_code=status.HTTP_200_OK,tags = ['CRUD Operations'])
-def update_item(item_name: str, item: Item,jwt_token:str = Header(...),user_email:str= Header(...)):
-
-    #authenticating the user
-    authenticate(jwt_token,user_email)
+def update_item(item_name: str, item: Item,dependencies = Depends(authenticate)):
     
     item_to_update = db.query(model.Items).filter(model.Items.name == item_name).first()
     
@@ -184,10 +151,7 @@ def update_item(item_name: str, item: Item,jwt_token:str = Header(...),user_emai
     return item_to_update
 
 @app.delete('/item/{item_name}', response_model=Item, status_code=status.HTTP_200_OK,tags = ['CRUD Operations'])
-def delete_item(item_name: str,jwt_token:str = Header(...),user_email:str= Header(...)):
-
-    #authenticating the user
-    authenticate(jwt_token,user_email)
+def delete_item(item_name: str,dependencies = Depends(authenticate)):
     
     item_to_delete = db.query(model.Items).filter(
         model.Items.name == item_name).first()
@@ -200,3 +164,4 @@ def delete_item(item_name: str,jwt_token:str = Header(...),user_email:str= Heade
     db.commit()
 
     return item_to_delete
+
