@@ -12,6 +12,7 @@ def get_hashed_password(password: str) -> str:
 def verify_password(password: str, hashed_pass: str) -> bool:
     return password_context.verify(password, hashed_pass)
 
+
 # block of code for generating the jwt token
 import os
 from datetime import datetime, timedelta
@@ -37,12 +38,6 @@ def create_access_token(subject: Union[str, Any], expires_delta: int = None) -> 
     to_encode = {"exp": expires_delta, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, ALGORITHM)
     return encoded_jwt, expires_delta
-
-def validate_jwt(exp_time):
-    current_time = datetime.utcnow()
-    if exp_time > current_time:
-        return True 
-    return False 
 
 
 def decode_access_token(token: str, user_name: str):
